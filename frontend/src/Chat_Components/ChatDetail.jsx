@@ -265,13 +265,17 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setError(null);
           toast.success("Paid session started successfully!");
         } catch (error) {
-          setError(`Failed to start paid session: ${error.response?.data?.error || error.message}`);
-          toast.error(error.response?.data?.error || "Failed to start paid session. Please try again.");
+          const errMsg = error.response?.data?.error || error.message;
+          setError(`Failed to start paid session: ${errMsg}`);
+          toast.error(errMsg || "Failed to start paid session. Please try again.");
+          if (errMsg.includes("locked")) {
+            toast.info("Resources are temporarily locked. Retrying automatically.");
+          }
         } finally {
           setIsStartingSession(false);
           sessionLockRef.current = false;
         }
-      }, 1000)
+      }, 2000)
     : debounce(async () => {
         if (credits === null || credits <= 0 || isStartingSession || sessionLockRef.current) {
           setIsPaymentModalOpen(true);
@@ -295,8 +299,12 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setError(null);
           toast.success("Paid session started successfully!");
         } catch (error) {
-          setError(`Failed to start paid session: ${error.response?.data?.error || error.message}`);
-          toast.error(error.response?.data?.error || "Failed to start paid session. Please try again.");
+          const errMsg = error.response?.data?.error || error.message;
+          setError(`Failed to start paid session: ${errMsg}`);
+          toast.error(errMsg || "Failed to start paid session. Please try again.");
+          if (errMsg.includes("locked")) {
+            toast.info("Resources are temporarily locked. Retrying automatically.");
+          }
         } finally {
           setIsStartingSession(false);
           sessionLockRef.current = false;
@@ -326,13 +334,17 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setError(null);
           toast.success("Paid session stopped successfully!");
         } catch (error) {
-          setError(`Failed to stop session: ${error.response?.data?.error || error.message}`);
-          toast.error(error.response?.data?.error || "Failed to stop session. Please try again.");
+          const errMsg = error.response?.data?.error || error.message;
+          setError(`Failed to stop session: ${errMsg}`);
+          toast.error(errMsg || "Failed to stop session. Please try again.");
+          if (errMsg.includes("locked")) {
+            toast.info("Session or wallet is locked. Please try again shortly.");
+          }
         } finally {
           setIsStoppingSession(false);
           sessionLockRef.current = false;
         }
-      }, 1000)
+      }, 2000)
     : debounce(async () => {
         if (!chat?._id || authLoading || !user || authError || isStoppingSession || isStartingSession || sessionLockRef.current) return;
         sessionLockRef.current = true;
@@ -354,8 +366,12 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setError(null);
           toast.success("Paid session stopped successfully!");
         } catch (error) {
-          setError(`Failed to stop session: ${error.response?.data?.error || error.message}`);
-          toast.error(error.response?.data?.error || "Failed to stop session. Please try again.");
+          const errMsg = error.response?.data?.error || error.message;
+          setError(`Failed to stop session: ${errMsg}`);
+          toast.error(errMsg || "Failed to stop session. Please try again.");
+          if (errMsg.includes("locked")) {
+            toast.info("Session or wallet is locked. Please try again shortly.");
+          }
         } finally {
           setIsStoppingSession(false);
           sessionLockRef.current = false;
