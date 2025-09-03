@@ -7,9 +7,11 @@ import { Progress } from "@/components/ui/progress";
 import { Star, Sun, Zap, Target, Home, Briefcase, Heart, Sparkles, Flame, MessageSquare, Globe, Shield, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/All_Components/screen/AuthContext";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
-import { DialogHeader } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import axios from "axios";
+import { parse, isValid, isBefore } from "date-fns";
 
 // Vedic Chart Component
 const VedicChart = ({ chart }) => {
@@ -93,6 +95,7 @@ const VedicChart = ({ chart }) => {
   );
 };
 
+// Poetic Interpretation Component
 const PoeticInterpretation = ({ chart }) => {
   if (!chart) return null;
 
@@ -138,6 +141,7 @@ const PoeticInterpretation = ({ chart }) => {
   );
 };
 
+// Cosmic Story Component
 const CosmicStory = ({ chart, numerology }) => {
   if (!chart || !numerology) return null;
   return <div>{/* CosmicStory implementation */}</div>;
@@ -149,16 +153,47 @@ const AstrologyReport = ({ openPaymentModal }) => {
   const navigate = useNavigate();
   const [report, setReport] = useState(location.state?.astrologyReport || null);
   const [showModal, setShowModal] = useState(!!location.state?.astrologyReport);
+  const [showFormModal, setShowFormModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [userCredits, setUserCredits] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [firstPsychicId, setFirstPsychicId] = useState(null);
   const [pdfReport, setPdfReport] = useState(null);
   const [isPdfSubmitting, setIsPdfSubmitting] = useState(false);
-const [gender, setGender] = useState("");
+  const [gender, setGender] = useState("");
   const [genderError, setGenderError] = useState("");
+  const [formData, setFormData] = useState({
+    yourFirstName: "",
+    yourLastName: "",
+    yourBirthDate: "",
+    yourBirthTime: "",
+    yourBirthPlace: "",
+    yourLatitude: null,
+    yourLongitude: null,
+  });
+
+  useEffect(() => {
+    // Auto-fill form data from user profile
+    if (user) {
+      const birthDate = user.dob ? new Date(user.dob).toISOString().split("T")[0] : "";
+      setFormData({
+        yourFirstName: user.username || "",
+        yourLastName: "",
+        yourBirthDate: birthDate,
+        yourBirthTime: user.birthTime || "",
+        yourBirthPlace: user.birthPlace || "",
+        yourLatitude: null,
+        yourLongitude: null,
+      });
+      if (!birthDate || !user.birthTime || !user.birthPlace) {
+        toast.warning("Some profile details are missing. Please complete your profile in the dashboard for a seamless experience.");
+      }
+    }
+  }, [user]);
+
   useEffect(() => {
     const fetchFirstTarotPsychic = async () => {
       try {
@@ -188,10 +223,10 @@ const [gender, setGender] = useState("");
       if (!user) return;
       try {
         const token = localStorage.getItem("accessToken");
-        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/wallet`, {
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/wallet`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await response.json();
+        const data = response.data;
         if (data.success) {
           setUserCredits(data.credits || 0);
         } else {
@@ -202,41 +237,41 @@ const [gender, setGender] = useState("");
       }
     };
 
-   const fetchReport = async () => {
-  try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/astrology-report`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-    if (data.success && data.data) {
-      setReport(data.data);
-      setShowModal(true);
-    } else {
-      setReport(null);
-      toast.info("No existing astrology report found. Generate a new one!");
-    }
-  } catch (error) {
-    console.error("Error fetching astrology report:", error);
-    setReport(null);
-    toast.error("Failed to fetch astrology report.");
-  }
-};
+    const fetchReport = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/astrology-report`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = response.data;
+        if (data.success && data.data) {
+          setReport(data.data);
+          setShowModal(true);
+        } else {
+          setReport(null);
+          toast.info("No existing astrology report found. Generate a new one!");
+        }
+      } catch (error) {
+        console.error("Error fetching astrology report:", error);
+        setReport(null);
+        toast.error("Failed to fetch astrology report.");
+      }
+    };
 
-   const fetchPdfReport = async () => {
-  try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/pdf-astrology-reports`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-    if (data.success && data.data.length > 0) {
-      setPdfReport(data.data[0]); // Assume one PDF per user
-    }
-  } catch (error) {
-    console.error("Error fetching PDF report:", error);
-  }
-};
+    const fetchPdfReport = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/pdf-astrology-reports`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = response.data;
+        if (data.success && data.data.length > 0) {
+          setPdfReport(data.data[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching PDF report:", error);
+      }
+    };
 
     // Check user and birth details
     if (!user) {
@@ -255,33 +290,69 @@ const [gender, setGender] = useState("");
 
     // Handle forceNew flag from AstrologyReportTable
     if (location.state?.forceNew) {
-      setReport(null); // Clear existing report
-      handleAstrologyUnlock(); // Trigger new report generation
+      setReport(null);
+      handleAstrologyUnlock();
     } else {
-      fetchReport(); // Fetch existing report
+      fetchReport();
     }
 
     fetchPdfReport();
   }, [user, navigate, location.state]);
+
+  // Geocode birth place
+  useEffect(() => {
+    const fetchCoords = async (city) => {
+      if (!city) return;
+      try {
+        setIsGeocoding(true);
+        const response = await axios.get(
+          `${import.meta.env.VITE_BASE_URL}/api/geocode?city=${encodeURIComponent(city)}`
+        );
+        const { latitude, longitude } = response.data;
+        setFormData((prev) => ({
+          ...prev,
+          yourLatitude: latitude,
+          yourLongitude: longitude,
+        }));
+      } catch (err) {
+        console.error(`Geocode failed for "${city}"`, err);
+        toast.error("Failed to fetch coordinates for your birth place. Please enter a valid city and country (e.g., Amsterdam, Netherlands).");
+      } finally {
+        setIsGeocoding(false);
+      }
+    };
+
+    if (showFormModal && formData.yourBirthPlace) {
+      fetchCoords(formData.yourBirthPlace);
+    }
+  }, [formData.yourBirthPlace, showFormModal]);
 
   const handleAstrologyUnlock = async () => {
     setIsSubmitting(true);
     setModalType("astrology");
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/astrology-report`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/astrology-report`,
+        {
+          yourName: user.username || "",
+          birthDate: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
+          birthTime: user.birthTime || "",
+          birthPlace: user.birthPlace || "",
         },
-      });
-      const data = await response.json();
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = response.data;
       if (data.success) {
         setReport(data.data);
         setShowModal(true);
         toast.success("Astrology Report generated successfully!");
-        navigate("/astrology-report", { replace: true }); // Clear forceNew state
+        navigate("/astrology-report", { replace: true });
       } else {
         if (data.message.includes("Insufficient credits")) {
           setShowConfirmModal(true);
@@ -300,70 +371,79 @@ const [gender, setGender] = useState("");
     }
   };
 
-const handlePdfUnlock = async () => {
-  if (!gender) {
-    setGenderError("Please select your gender.");
-    return;
-  }
-  setGenderError("");
+  const handlePdfUnlock = async () => {
+    if (!gender) {
+      setGenderError("Please select your gender.");
+      return;
+    }
+    setGenderError("");
 
-  // Validate user profile data
-  if (!user.username || !user.dob || !user.birthTime || !user.birthPlace) {
-    toast.error("Please update your profile with your name, date of birth, birth time, and birth place.");
-    navigate("/profile");
-    return;
-  }
+    if (!user.username || !user.dob || !user.birthTime || !user.birthPlace) {
+      toast.error("Please update your profile with your name, date of birth, birth time, and birth place.");
+      navigate("/profile");
+      return;
+    }
 
-  setIsPdfSubmitting(true);
-  try {
-    const token = localStorage.getItem("accessToken");
-    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/generate-pdf-astrology-report`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ gender }), // Only send gender, as other fields are in user profile
-    });
-    const data = await response.json();
-    if (data.success) {
-      setPdfReport(data.data);
-      await fetchUserCredits(); // Refetch credits
-      toast.success("PDF Astrology Report generated successfully!");
-    } else {
-      if (data.message.includes("Insufficient credits")) {
+    setIsPdfSubmitting(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/generate-pdf-astrology-report`,
+        { gender },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = response.data;
+      if (data.success) {
+        setPdfReport(data.data);
+        await fetchUserCredits();
+        toast.success("PDF Astrology Report generated successfully!");
+      } else {
+        if (data.message.includes("Insufficient credits")) {
+          setShowConfirmModal(true);
+          setModalType("pdf-astrology");
+        } else {
+          toast.error(data.message || "Failed to generate PDF Astrology Report.");
+        }
+      }
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      if (error.response?.data?.message?.includes("Insufficient credits")) {
         setShowConfirmModal(true);
         setModalType("pdf-astrology");
       } else {
-        toast.error(data.message || "Failed to generate PDF Astrology Report.");
+        toast.error(error.response?.data?.message || "Error generating PDF Astrology Report.");
       }
+    } finally {
+      setIsPdfSubmitting(false);
     }
-  } catch (error) {
-    console.error("PDF Generation Error:", error);
-    if (error.response?.data?.message?.includes("Insufficient credits")) {
-      setShowConfirmModal(true);
-      setModalType("pdf-astrology");
-    } else {
-      toast.error(error.response?.data?.message || "Error generating PDF Astrology Report.");
-    }
-  } finally {
-    setIsPdfSubmitting(false);
-  }
-};
+  };
 
   const handleUnlockMonthlyForecast = async () => {
     setIsSubmitting(true);
     setModalType("monthly-forecast");
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/api/monthly-forecast`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/monthly-forecast`,
+        {
+          yourName: user.username || "",
+          birthDate: user.dob ? new Date(user.dob).toISOString().split("T")[0] : "",
+          birthTime: user.birthTime || "",
+          birthPlace: user.birthPlace || "",
         },
-      });
-      const data = await response.json();
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = response.data;
       if (data.success) {
         navigate("/monthly-forecast", { state: { monthlyForecast: data.data } });
         toast.success("Monthly Forecast Report unlocked successfully!");
@@ -394,12 +474,164 @@ const handlePdfUnlock = async () => {
     }
   };
 
-  const handleNext = () => {
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name.includes("Name")) {
+      const nameRegex = /^[a-zA-Z\s]*$/;
+      if (value && !nameRegex.test(value)) {
+        toast.error(`${name.includes("First") ? "First name" : "Last name"} must contain only letters and spaces.`);
+        return;
+      }
+    }
+
+    if (name === "yourBirthDate") {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (value && !dateRegex.test(value)) {
+        toast.error("Invalid date format for Your Birth Date. Use YYYY-MM-DD.");
+        return;
+      }
+      const date = parse(value, "yyyy-MM-dd", new Date());
+      if (value && (!isValid(date) || !isBefore(date, new Date()))) {
+        toast.error("Your Birth Date must be in the past.");
+        return;
+      }
+    }
+
+    if (name === "yourBirthTime") {
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (value && !timeRegex.test(value)) {
+        toast.error("Invalid time format for Your Birth Time. Use HH:MM (24-hour).");
+        return;
+      }
+    }
+
+    if (name === "yourBirthPlace") {
+      if (value && !value.includes(",")) {
+        toast.warning("Please include city and country for Your Birth Place (e.g., 'Amsterdam, Netherlands').");
+      }
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value.trim() }));
   };
 
-  const handlePrevious = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  const handleFormSubmit = async () => {
+    if (!user || !firstPsychicId) {
+      toast.error("Please log in and ensure an Astrology Coach is available.");
+      navigate("/login");
+      return;
+    }
+
+    const requiredFields = ["yourFirstName", "yourBirthDate", "yourBirthPlace"];
+    const missingFields = requiredFields.filter((field) => !formData[field]?.trim());
+    if (missingFields.length > 0) {
+      toast.error(`Missing required fields: ${missingFields
+        .map((field) => field.replace(/([A-Z])/g, " $1").toLowerCase())
+        .join(", ")}`);
+      return;
+    }
+
+    const nameRegex = /^[a-zA-Z\s]*$/;
+    if (!nameRegex.test(formData.yourFirstName)) {
+      toast.error("Your first name must contain only letters and spaces.");
+      return;
+    }
+    if (formData.yourLastName && !nameRegex.test(formData.yourLastName)) {
+      toast.error("Your last name must contain only letters and spaces.");
+      return;
+    }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(formData.yourBirthDate)) {
+      toast.error("Invalid birth date format. Please use YYYY-MM-DD.");
+      return;
+    }
+
+    const userDate = parse(formData.yourBirthDate, "yyyy-MM-dd", new Date());
+    if (!isValid(userDate) || !isBefore(userDate, new Date())) {
+      toast.error("Your Birth Date must be valid and in the past.");
+      return;
+    }
+
+    if (formData.yourBirthTime) {
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(formData.yourBirthTime)) {
+        toast.error("Invalid time format for Your Birth Time. Use HH:MM (24-hour).");
+        return;
+      }
+    }
+
+    if (formData.yourBirthPlace && !formData.yourLatitude) {
+      toast.error("Please wait for geocoding to complete or enter a valid birth place.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast.error("Authentication token missing. Please log in again.");
+        navigate("/login");
+        return;
+      }
+
+      const payload = {
+        psychicId: firstPsychicId,
+        formData: {
+          yourName: `${formData.yourFirstName} ${formData.yourLastName || ""}`.trim(),
+          birthDate: formData.yourBirthDate,
+          birthTime: formData.yourBirthTime || "",
+          birthPlace: formData.yourBirthPlace,
+          latitude: Number(formData.yourLatitude) || null,
+          longitude: Number(formData.yourLongitude) || null,
+        },
+      };
+
+      console.log("Submitting astrology form payload:", payload);
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/form/submit`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Astrology reading data saved successfully!");
+        setShowFormModal(false);
+        navigate(`/chat/${firstPsychicId}`);
+      } else {
+        toast.error(response.data.message || "Failed to save reading data.");
+      }
+    } catch (error) {
+      console.error("Submission error:", error.response?.data || error);
+      if (error.response?.data?.message?.includes("Invalid birth place")) {
+        toast.error("Invalid birth place provided. Please enter a valid city and country (e.g., Amsterdam, Netherlands).");
+      } else if (error.response?.data?.message?.includes("Missing required fields")) {
+        toast.error(`Missing required fields: ${error.response.data.message.split(":")[1] || "please check your input."}`);
+      } else {
+        toast.error(error.response?.data?.message || "An error occurred while saving the reading data.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const fetchUserCredits = async () => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/wallet`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUserCredits(response.data.credits || 0);
+    } catch (error) {
+      console.error("Failed to fetch user credits:", error);
+    }
   };
 
   const renderSummary = () => {
@@ -511,61 +743,61 @@ const handlePdfUnlock = async () => {
     </div>
   );
 
- const renderStep3 = () => {
-  if (!report || !report.chart || !report.numerology) {
+  const renderStep3 = () => {
+    if (!report || !report.chart || !report.numerology) {
+      return (
+        <div className="text-center text-purple-700">
+          <p>No report data available. Please generate a report first.</p>
+          <Button
+            variant="brand"
+            className="mt-4 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+            onClick={handleAstrologyUnlock}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Processing..." : "Generate Report (5 Credits)"}
+          </Button>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center text-purple-700">
-        <p>No report data available. Please generate a report first.</p>
-        <Button
-          variant="brand"
-          className="mt-4 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-          onClick={handleAstrologyUnlock}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Processing..." : "Generate Report (5 Credits)"}
-        </Button>
+      <div className="space-y-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg border border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-blue-800 flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              Planetaire Inzichten
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { planet: "sun", icon: Sparkles, color: "amber", label: "Kern Identiteit", influence: 80 },
+                { planet: "moon", icon: Heart, color: "blue", label: "Emotionele Kern", influence: 75 },
+                { planet: "venus", icon: Flame, color: "pink", label: "Liefde & Harmonie", influence: 70 },
+                { planet: "mars", icon: Flame, color: "red", label: "Drive & Passie", influence: 65 },
+                { planet: "mercury", icon: MessageSquare, color: "green", label: "Communicatie", influence: 72 },
+                { planet: "jupiter", icon: Globe, color: "yellow", label: "Groei & Wijsheid", influence: 78 },
+                { planet: "saturn", icon: Shield, color: "gray", label: "Discipline", influence: 68 },
+              ].map(({ planet, icon: Icon, color, label, influence }) => (
+                <div key={planet} className={`p-4 bg-white/50 rounded-lg border border-${color}-100`}>
+                  <h3 className={`text-xl font-semibold text-${color}-800 flex items-center gap-2`}>
+                    <Icon className={`h-5 w-5 text-${color}-500`} />
+                    {planet.charAt(0).toUpperCase() + planet.slice(1)} in {report.chart[planet]?.sign || "Unknown"} (Huis {report.chart[planet]?.house || "Unknown"})
+                  </h3>
+                  <p className={`text-${color}-700 text-sm mt-2`}>{report.chart[planet]?.description || "No description available."}</p>
+                  <Progress value={influence} className={`h-2 mt-2 bg-white border border-${color}-200`} />
+                  <p className={`text-${color}-600 text-xs mt-1`}>Invloed: {influence}%</p>
+                  <Badge className={`mt-2 bg-${color}-500 text-white`}>{label}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <CosmicStory chart={report.chart} numerology={report.numerology} />
       </div>
     );
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg border border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800 flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Planetaire Inzichten
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { planet: "sun", icon: Sparkles, color: "amber", label: "Kern Identiteit", influence: 80 },
-              { planet: "moon", icon: Heart, color: "blue", label: "Emotionele Kern", influence: 75 },
-              { planet: "venus", icon: Flame, color: "pink", label: "Liefde & Harmonie", influence: 70 },
-              { planet: "mars", icon: Flame, color: "red", label: "Drive & Passie", influence: 65 },
-              { planet: "mercury", icon: MessageSquare, color: "green", label: "Communicatie", influence: 72 },
-              { planet: "jupiter", icon: Globe, color: "yellow", label: "Groei & Wijsheid", influence: 78 },
-              { planet: "saturn", icon: Shield, color: "gray", label: "Discipline", influence: 68 },
-            ].map(({ planet, icon: Icon, color, label, influence }) => (
-              <div key={planet} className={`p-4 bg-white/50 rounded-lg border border-${color}-100`}>
-                <h3 className={`text-xl font-semibold text-${color}-800 flex items-center gap-2`}>
-                  <Icon className={`h-5 w-5 text-${color}-500`} />
-                  {planet.charAt(0).toUpperCase() + planet.slice(1)} in {report.chart[planet]?.sign || "Unknown"} (Huis {report.chart[planet]?.house || "Unknown"})
-                </h3>
-                <p className={`text-${color}-700 text-sm mt-2`}>{report.chart[planet]?.description || "No description available."}</p>
-                <Progress value={influence} className={`h-2 mt-2 bg-white border border-${color}-200`} />
-                <p className={`text-${color}-600 text-xs mt-1`}>Invloed: {influence}%</p>
-                <Badge className={`mt-2 bg-${color}-500 text-white`}>{label}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-      <CosmicStory chart={report.chart} numerology={report.numerology} />
-    </div>
-  );
-};
+  };
 
   const renderNoReport = () => (
     <div className="p-4 bg-white rounded-lg shadow-sm dark:bg-slate-900 border border-slate-100 dark:border-slate-800 max-w-xs mx-auto">
@@ -595,11 +827,50 @@ const handlePdfUnlock = async () => {
     </div>
   );
 
-const renderPdfSection = () => (
-  <div className="mt-8">
-   
-  </div>
-);
+  const renderFormFields = () => {
+    const commonInput = (label, name, type = "text", placeholder = "", required = false) => (
+      <div className="space-y-2">
+        <Label>{label}{required ? " *" : ""}</Label>
+        <Input
+          type={type}
+          name={name}
+          value={formData[name] || ""}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          required={required}
+          className="rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-gray-300"
+        />
+      </div>
+    );
+
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-4">
+          {commonInput("Your First Name", "yourFirstName", "text", "Your first name", true)}
+          {commonInput("Your Last Name", "yourLastName", "text", "Your last name", false)}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {commonInput("Your Date of Birth", "yourBirthDate", "date", "", true)}
+          {commonInput("Your Time of Birth", "yourBirthTime", "time", "", false)}
+        </div>
+        {commonInput("Your Place of Birth", "yourBirthPlace", "text", "City, Country", true)}
+      </>
+    );
+  };
+
+  const renderPdfSection = () => (
+    <div className="mt-8">
+      {/* PDF section implementation */}
+    </div>
+  );
+
+  const handleNext = () => {
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
 
   const stepProgress = currentStep === 1 ? 33 : currentStep === 2 ? 66 : 100;
   const stepLabel = currentStep === 1 ? "Geboortekaart" : currentStep === 2 ? "Kosmische Inzichten" : "Gedetailleerde Analyse";
@@ -623,41 +894,41 @@ const renderPdfSection = () => (
         </div>
 
         {!report ? (
-  renderNoReport()
-) : (
-  <>
-    <div className="mb-8">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-purple-800 font-medium">Stap {currentStep}: {stepLabel}</span>
-        <span className="text-purple-700 text-sm">{stepProgress}% Voltooid</span>
-      </div>
-      <Progress value={stepProgress} className="h-3 bg-white border border-purple-200" />
-    </div>
+          renderNoReport()
+        ) : (
+          <>
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-purple-800 font-medium">Stap {currentStep}: {stepLabel}</span>
+                <span className="text-purple-700 text-sm">{stepProgress}% Voltooid</span>
+              </div>
+              <Progress value={stepProgress} className="h-3 bg-white border border-purple-200" />
+            </div>
 
-    {currentStep === 1 && renderStep1()}
-    {currentStep === 2 && renderStep2()}
-    {currentStep === 3 && renderStep3()}
-    {renderPdfSection()} {/* Always show PDF section */}
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+            {renderPdfSection()}
 
-    <div className="flex justify-between mt-8">
-      <Button
-        variant="outline"
-        className="rounded-full border-purple-600 text-purple-600 hover:bg-purple-50"
-        onClick={handlePrevious}
-        disabled={currentStep === 1}
-      >
-        Vorige
-      </Button>
-      {currentStep < 3 && (
-        <Button
-          variant="brand"
-          className="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-          onClick={handleNext}
-        >
-          Volgende
-        </Button>
-      )}
-    </div>
+            <div className="flex justify-between mt-8">
+              <Button
+                variant="outline"
+                className="rounded-full border-purple-600 text-purple-600 hover:bg-purple-50"
+                onClick={handlePrevious}
+                disabled={currentStep === 1}
+              >
+                Vorige
+              </Button>
+              {currentStep < 3 && (
+                <Button
+                  variant="brand"
+                  className="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                  onClick={handleNext}
+                >
+                  Volgende
+                </Button>
+              )}
+            </div>
             <div className="text-center mt-8">
               <h2 className="text-2xl font-bold text-purple-800 mb-4">Klaar om Meer te Verkennen?</h2>
               <p className="text-purple-700 mb-6">Verbind met een coach om dieper in je kosmische reis te duiken of ontgrendel extra inzichten.</p>
@@ -666,9 +937,10 @@ const renderPdfSection = () => (
                   variant="brand"
                   className="rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
                   onClick={() => {
-                    console.log("Navigating to chat, firstPsychicId:", firstPsychicId);
-                    navigate(firstPsychicId ? `/chat/${firstPsychicId}` : "/chat");
+                    console.log("Opening astrology form modal, firstPsychicId:", firstPsychicId);
+                    setShowFormModal(true);
                   }}
+                  disabled={!firstPsychicId}
                 >
                   Chat nu met je AI Coach
                 </Button>
@@ -734,6 +1006,34 @@ const renderPdfSection = () => (
                   className="px-4 py-1.5 text-sm rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm"
                 >
                   Credits Toevoegen
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showFormModal} onOpenChange={setShowFormModal}>
+          <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl bg-white rounded-xl shadow-lg z-50 focus:outline-none p-0">
+            <div className="max-h-[90vh] overflow-y-auto p-6 space-y-6">
+              <h2 className="text-2xl font-semibold text-center">Astrology Reading</h2>
+              <div className="space-y-4">
+                {renderFormFields()}
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => setShowFormModal(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleFormSubmit}
+                  variant="brand"
+                  className="flex-1"
+                  disabled={isSubmitting || isGeocoding}
+                >
+                  {isSubmitting ? "Submitting..." : isGeocoding ? "Fetching Coordinates..." : "Start Reading"}
                 </Button>
               </div>
             </div>

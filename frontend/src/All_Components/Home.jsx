@@ -369,10 +369,6 @@ const Home = () => {
       toast.error("Your first name must contain only letters and spaces.");
       return;
     }
-    if (formData.yourLastName && !nameRegex.test(formData.yourLastName)) {
-      toast.error("Your last name must contain only letters and spaces.");
-      return;
-    }
     if (!nameRegex.test(formData.partnerFirstName) || !nameRegex.test(formData.partnerLastName)) {
       toast.error("Partner's first and last names must contain only letters and spaces.");
       return;
@@ -401,7 +397,6 @@ const Home = () => {
         `${import.meta.env.VITE_BASE_URL}/api/generate-love-pdf-report`,
         {
           yourFirstName: formData.yourFirstName,
-          yourLastName: formData.yourLastName || "",
           yourBirthDate: formData.yourBirthDate,
           yourBirthTime: formData.yourBirthTime || "",
           yourBirthPlace: formData.yourBirthPlace,
@@ -682,7 +677,7 @@ const Home = () => {
         toast.error("Your first name must contain only letters and spaces.");
         return;
       }
-      if (formData.yourLastName && !nameRegex.test(formData.yourLastName)) {
+      if (type === "astrology" && formData.yourLastName && !nameRegex.test(formData.yourLastName)) {
         console.log("Invalid yourLastName format");
         toast.error("Your last name must contain only letters and spaces.");
         return;
@@ -764,7 +759,7 @@ const Home = () => {
             longitude: Number(formData.yourLongitude) || null,
           }),
           ...(type === "numerology" && {
-            yourName: `${formData.yourFirstName} ${formData.yourLastName || ""}`.trim(),
+            yourName: formData.yourFirstName.trim(),
             birthDate: formData.yourBirthDate,
           }),
           ...(type === "love" && {
@@ -844,7 +839,6 @@ const Home = () => {
         return (
           <>
             {commonInput("Your First Name", "yourFirstName", "text", "Your first name", true)}
-            {commonInput("Your Last Name", "yourLastName", "text", "Your last name", false)}
             {commonInput("Date of Birth", "yourBirthDate", "date", "", true)}
           </>
         );
