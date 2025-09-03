@@ -146,15 +146,24 @@ router.post("/start-paid-session/:psychicId", protect, checkAndUpdateTimer, asyn
       return res.status(400).json({ error: "Invalid user or psychic ID" });
     }
 
-    // Lock wallet to prevent concurrent updates
-    const wallet = await Wallet.findOneAndUpdate(
-      { userId, lock: false },
-      { $set: { lock: true } },
-      { new: true }
-    );
+    // Lock wallet to prevent concurrent updates with retry
+    let wallet;
+    let attempts = 0;
+    const maxAttempts = 5;
+    while (!wallet && attempts < maxAttempts) {
+      wallet = await Wallet.findOneAndUpdate(
+        { userId, lock: false },
+        { $set: { lock: true } },
+        { new: true }
+      );
+      if (!wallet) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms before retry
+      }
+    }
 
     if (!wallet) {
-      return res.status(400).json({ error: "Wallet locked or not found" });
+      return res.status(400).json({ error: "Wallet locked or not found after retries" });
     }
 
     try {
@@ -183,13 +192,21 @@ router.post("/start-paid-session/:psychicId", protect, checkAndUpdateTimer, asyn
       });
 
       for (const otherSession of otherPaidSessions) {
-        const sessionLock = await ActiveSession.findOneAndUpdate(
-          { _id: otherSession._id, lock: false },
-          { $set: { lock: true } },
-          { new: true }
-        );
+        let sessionLock;
+        let sessionAttempts = 0;
+        while (!sessionLock && sessionAttempts < maxAttempts) {
+          sessionLock = await ActiveSession.findOneAndUpdate(
+            { _id: otherSession._id, lock: false },
+            { $set: { lock: true } },
+            { new: true }
+          );
+          if (!sessionLock) {
+            sessionAttempts++;
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
 
-        if (!sessionLock) continue; // Skip if session is locked
+        if (!sessionLock) continue;
 
         const secondsSinceStart = Math.floor((new Date() - otherSession.paidStartTime) / 1000);
         const creditsToDeduct = Math.ceil(secondsSinceStart / 60);
@@ -241,21 +258,29 @@ router.post("/start-paid-session/:psychicId", protect, checkAndUpdateTimer, asyn
           lock: false,
         });
       } else {
-        const sessionLock = await ActiveSession.findOneAndUpdate(
-          { userId, psychicId, lock: false },
-          {
-            $set: {
-              paidSession: true,
-              paidStartTime: now,
-              initialCredits: wallet.credits,
-              freeSessionUsed: true,
-              remainingFreeTime: 0,
-              isArchived: false,
-              lock: true,
+        let sessionLock;
+        let sessionAttempts = 0;
+        while (!sessionLock && sessionAttempts < maxAttempts) {
+          sessionLock = await ActiveSession.findOneAndUpdate(
+            { userId, psychicId, lock: false },
+            {
+              $set: {
+                paidSession: true,
+                paidStartTime: now,
+                initialCredits: wallet.credits,
+                freeSessionUsed: true,
+                remainingFreeTime: 0,
+                isArchived: false,
+                lock: true,
+              },
             },
-          },
-          { new: true }
-        );
+            { new: true }
+          );
+          if (!sessionLock) {
+            sessionAttempts++;
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
 
         if (!sessionLock) {
           return res.status(400).json({ error: "Session is locked, try again" });
@@ -301,7 +326,7 @@ router.post("/start-paid-session/:psychicId", protect, checkAndUpdateTimer, asyn
   }
 });
 
-// Stop Paid Session Endpoint
+// Stop Paid Session Endpoint with retry logic
 router.post("/stop-session/:psychicId", protect, async (req, res) => {
   try {
     const { psychicId } = req.params;
@@ -311,27 +336,44 @@ router.post("/stop-session/:psychicId", protect, async (req, res) => {
       return res.status(400).json({ error: "Invalid user or psychic ID" });
     }
 
-    // Lock wallet
-    const wallet = await Wallet.findOneAndUpdate(
-      { userId, lock: false },
-      { $set: { lock: true } },
-      { new: true }
-    );
-
-    if (!wallet) {
-      return res.status(400).json({ error: "Wallet locked or not found" });
-    }
-
-    try {
-      // Lock session
-      const currentSession = await ActiveSession.findOneAndUpdate(
-        { userId, psychicId, lock: false, paidSession: true, isArchived: false },
+    // Lock wallet with retry
+    let wallet;
+    let attempts = 0;
+    const maxAttempts = 5;
+    while (!wallet && attempts < maxAttempts) {
+      wallet = await Wallet.findOneAndUpdate(
+        { userId, lock: false },
         { $set: { lock: true } },
         { new: true }
       );
+      if (!wallet) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 200)); // Wait 200ms before retry
+      }
+    }
+
+    if (!wallet) {
+      return res.status(400).json({ error: "Wallet locked or not found after retries" });
+    }
+
+    try {
+      // Lock session with retry
+      let currentSession;
+      attempts = 0;
+      while (!currentSession && attempts < maxAttempts) {
+        currentSession = await ActiveSession.findOneAndUpdate(
+          { userId, psychicId, lock: false, paidSession: true, isArchived: false },
+          { $set: { lock: true } },
+          { new: true }
+        );
+        if (!currentSession) {
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
 
       if (!currentSession) {
-        return res.status(400).json({ error: "No active paid session found or session is locked" });
+        return res.status(400).json({ error: "No active paid session found or session is locked after retries" });
       }
 
       const secondsSinceStart = Math.floor((new Date() - currentSession.paidStartTime) / 1000);
