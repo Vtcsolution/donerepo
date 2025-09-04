@@ -969,14 +969,14 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
       const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
       return res.status(200).json(responseWithMetadata);
    
-   } else if (type === "Tarot") {
+    } else if (type === "Tarot") {
   console.log("[Tarot] Starting Tarot reading for user:", userId, "with question:", message);
-
+  
   // Define a simplified Rider-Waite Tarot deck (78 cards)
   const tarotDeck = [
     "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
     "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
-    "The Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
     "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World",
     "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
     "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
@@ -996,7 +996,7 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
     "The Chariot": "Willpower, determination, victory",
     "Strength": "Courage, inner strength, compassion",
     "The Hermit": "Introspection, solitude, guidance",
-    "The Wheel of Fortune": "Cycles, change, destiny",
+    "Wheel of Fortune": "Cycles, change, destiny",
     "Justice": "Fairness, truth, balance",
     "The Hanged Man": "Surrender, perspective, sacrifice",
     "Death": "Transformation, endings, new beginnings",
@@ -1022,12 +1022,27 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
     "Two of Swords": "Indecision, stalemate, balance",
     "Three of Swords": "Heartbreak, sorrow, betrayal",
     "Four of Swords": "Rest, recovery, contemplation",
-    "Five of Swords": "Conflict, defeat, manipulation",
+    "Five of Pentacles": "Hardship, insecurity, isolation",
     "Ace of Pentacles": "Prosperity, new opportunities, abundance",
     "Two of Pentacles": "Balance, adaptability, juggling",
     "Three of Pentacles": "Collaboration, skill, teamwork",
     "Four of Pentacles": "Security, control, possessiveness",
     "Five of Pentacles": "Hardship, insecurity, isolation"
+  };
+
+  // Life Path number meanings for integration
+  const lifePathMeanings = {
+    1: "Leadership, independence, and pioneering spirit. You blaze your own trail! 🚀",
+    2: "Cooperation, diplomacy, and sensitivity. You seek harmony and balance. 🤝",
+    3: "Creativity, self-expression, and joy. You inspire others with your vibrancy! 🎨",
+    4: "Stability, discipline, and hard work. You build strong foundations. 🏗️",
+    5: "Freedom, adventure, and change. You thrive on new experiences! 🌍",
+    6: "Nurturing, responsibility, and love. You care deeply for others. ❤️",
+    7: "Introspection, spirituality, and wisdom. You seek deeper truths. 🔍",
+    8: "Ambition, power, and material success. You aim for achievement! 💼",
+    9: "Compassion, humanitarianism, and completion. You give selflessly. 🌍",
+    11: "Intuition, inspiration, and enlightenment. A master visionary! ✨",
+    22: "Master builder, practicality, and big dreams. You create lasting impact! 🏛️"
   };
 
   // Select exactly 3 cards for Past, Present, Future
@@ -1054,7 +1069,7 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
   }
 
   const tarotSystemPrompt = `
-You are ${psychicName}, a deeply intuitive Tarot reader with expertise in numerology. The current date is September 4, 2025. Craft a cohesive, mystical reading that seamlessly blends Tarot and numerology for a personalized, uplifting experience. Use emojis (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic) to enhance engagement.
+You are ${psychicName}, a deeply intuitive Tarot reader. The current date is September 4, 2025. Provide a professional, engaging, and empathetic reading with a smooth, storytelling style. Use emojis to enhance engagement (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic).
 
 ${emojiContext}
 
@@ -1064,30 +1079,17 @@ Client Details:
 • Date of Reading: ${new Date().toISOString().split('T')[0]}
 ${Object.keys(numerologyData).length > 0 ? `
 • Numerology:
-  - Life Path: ${numerologyData.lifePath || "N/A"} 🔢 (guides life purpose, e.g., Life Path 7 seeks spiritual wisdom)
-  - Soul Urge: ${numerologyData.soulUrge || "N/A"} 💖 (inner desires, e.g., Soul Urge 3 craves creative expression)
-  - Expression: ${numerologyData.expression || "N/A"} 🌟 (outward talents, e.g., Expression 5 embraces adaptability)
-${numerologyData.karmicLessons?.length ? `  - Karmic Lessons: ${numerologyData.karmicLessons.join(", ")} 📝 (missing energies to learn)` : ""}
-${numerologyData.challenges?.length ? `  - Challenges: ${formatChallenges(numerologyData.challenges)} ⚠️ (life obstacles to overcome)` : ""}
+  - Life Path: ${numerologyData.lifePath || "N/A"} 🔢 (${lifePathMeanings[numerologyData.lifePath] || "Purpose and life journey"})
+  - Soul Urge: ${numerologyData.soulUrge || "N/A"} 💖 (Inner desires and motivations)
+  - Expression: ${numerologyData.expression || "N/A"} 🌟 (How you present to the world)
+${numerologyData.karmicLessons?.length ? `  - Karmic Lessons: ${numerologyData.karmicLessons.join(", ")} 📝` : ""}
+${numerologyData.challenges?.length ? `  - Challenges: ${formatChallenges(numerologyData.challenges)} ⚠️` : ""}
 ` : "• Numerology: Not available due to missing birth date 📅"}
 
-Three-Card Spread (Past, Present, Future): ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")} 🃏
-Card Meanings: ${selectedCards.map(c => `${c.card}: ${cardMeanings[c.card] || "General spiritual energy"}`).join("; ")}
+I have pulled a three-card spread (Past, Present, Future) for you: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")} 🃏.
+Card meanings: ${selectedCards.map(c => `${c.card}: ${cardMeanings[c.card] || "General spiritual energy"}`).join("; ")}.
 
-GUIDELINES:
-1. Respond to the user's question: "${message || "What guidance does the universe offer me today?"}"
-2. Interpret each card (Past, Present, Future) by weaving in numerology insights:
-   - Connect Life Path to the card’s life purpose theme (e.g., Life Path 1 aligns with The Magician’s leadership).
-   - Link Soul Urge to the card’s emotional or motivational aspects (e.g., Soul Urge 6 supports The Empress’s nurturing).
-   - Tie Expression to how the card’s energy is expressed (e.g., Expression 9 enhances The Star’s compassion).
-   - Reference Karmic Lessons or Challenges when relevant to the card’s narrative (e.g., a Karmic Lesson 4 supports The Emperor’s discipline).
-3. Incorporate ${zodiacSign || "the user’s"} zodiac energy briefly to enhance personalization (e.g., Aries’ boldness for The Chariot).
-4. Create a flowing, narrative-driven response that feels integrated, not a list of card meanings or numbers.
-5. Use a compassionate, empowering tone with emojis (🔮, 🃏, ✨, 💖).
-6. Avoid repeating the full numerology profile unless asked; focus on relevant insights.
-7. Keep response under 300 words for a concise, impactful reading.
-
-Example: For Life Path 7, The Hermit (Past) might reflect your introspective journey seeking wisdom, while Soul Urge 3 with The Sun (Present) suggests expressing joy creatively, and Expression 5 with The Fool (Future) encourages embracing new adventures.
+Respond to the user's question: "${message || "What guidance does the universe offer me today?"}" with a spiritual, empowering, and highly personalized narrative. Interpret each card (${selectedCards.map(c => c.card).join(", ")}) based on its position (Past, Present, Future) and meaning. Seamlessly weave in the user's zodiac energy (${zodiacSign || "Unknown"}) and numerology insights (especially Life Path: ${numerologyData.lifePath || "N/A"} - ${lifePathMeanings[numerologyData.lifePath] || "N/A"}) to create a unique, tailored reading. For example, connect the Life Path number to the card's theme (e.g., Life Path 7 aligns with The Hermit's introspection). Keep the tone compassionate, uplifting, and professional, using emojis (e.g., 🔮, 🃏, ✨) to enhance engagement. Avoid spelling errors and ensure a consistent, polished style. Keep response under 250 words.
 `.trim();
 
   const messagesForAI = [
@@ -1101,8 +1103,8 @@ Example: For Life Path 7, The Hermit (Past) might reflect your introspective jou
   const completion = await openai.chat.completions.create({
     model: "gpt-4",
     messages: messagesForAI,
-    temperature: 1.0,
-    max_tokens: 350,
+    temperature: 0.8, // Lowered from 1.0 for more consistent, professional output
+    max_tokens: 300, // Reduced slightly to ensure concise responses
   });
 
   let aiText = completion.choices[0].message.content;
