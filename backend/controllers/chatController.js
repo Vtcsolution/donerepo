@@ -969,91 +969,92 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
       const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
       return res.status(200).json(responseWithMetadata);
    
-     } else if (type === "Tarot") {
+   } else if (type === "Tarot") {
   console.log("[Tarot] Starting Tarot reading for user:", userId, "with question:", message);
-  
+
   // Define a simplified Rider-Waite Tarot deck (78 cards)
- const tarotDeck = [
-      "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
-      "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
-      "The Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
-      "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World",
-      "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
-      "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
-      "Ace of Swords", "Two of Swords", "Three of Swords", "Four of Swords", "Five of Swords",
-      "Ace of Pentacles", "Two of Pentacles", "Three of Pentacles", "Four of Pentacles", "Five of Pentacles"
-    ];
+  const tarotDeck = [
+    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
+    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
+    "The Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
+    "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World",
+    "Ace of Cups", "Two of Cups", "Three of Cups", "Four of Cups", "Five of Cups",
+    "Ace of Wands", "Two of Wands", "Three of Wands", "Four of Wands", "Five of Wands",
+    "Ace of Swords", "Two of Swords", "Three of Swords", "Four of Swords", "Five of Swords",
+    "Ace of Pentacles", "Two of Pentacles", "Three of Pentacles", "Four of Pentacles", "Five of Pentacles"
+  ];
 
-    // Basic card meanings for consistent interpretation
-    const cardMeanings = {
-      "The Fool": "New beginnings, spontaneity, trust in the universe",
-      "The Magician": "Manifestation, skill, resourcefulness",
-      "The High Priestess": "Intuition, mystery, inner wisdom",
-      "The Empress": "Nurturing, abundance, creativity",
-      "The Emperor": "Authority, structure, control",
-      "The Hierophant": "Tradition, spiritual guidance, conformity",
-      "The Lovers": "Love, harmony, choices",
-      "The Chariot": "Willpower, determination, victory",
-      "Strength": "Courage, inner strength, compassion",
-      "The Hermit": "Introspection, solitude, guidance",
-      "The Wheel of Fortune": "Cycles, change, destiny",
-      "Justice": "Fairness, truth, balance",
-      "The Hanged Man": "Surrender, perspective, sacrifice",
-      "Death": "Transformation, endings, new beginnings",
-      "Temperance": "Balance, moderation, harmony",
-      "The Devil": "Temptation, materialism, bondage",
-      "The Tower": "Sudden change, upheaval, revelation",
-      "The Star": "Hope, inspiration, healing",
-      "The Moon": "Illusion, intuition, uncertainty",
-      "The Sun": "Success, vitality, joy",
-      "Judgement": "Awakening, renewal, reckoning",
-      "The World": "Completion, fulfillment, unity",
-      "Ace of Cups": "Emotional new beginnings, love, intuition",
-      "Two of Cups": "Partnership, connection, unity",
-      "Three of Cups": "Celebration, friendship, joy",
-      "Four of Cups": "Apathy, reevaluation, missed opportunities",
-      "Five of Cups": "Loss, regret, moving on",
-      "Ace of Wands": "Inspiration, new ventures, energy",
-      "Two of Wands": "Planning, decisions, exploration",
-      "Three of Wands": "Expansion, foresight, progress",
-      "Four of Wands": "Celebration, stability, home",
-      "Five of Wands": "Conflict, competition, tension",
-      "Ace of Swords": "Clarity, truth, mental breakthrough",
-      "Two of Swords": "Indecision, stalemate, balance",
-      "Three of Swords": "Heartbreak, sorrow, betrayal",
-      "Four of Swords": "Rest, recovery, contemplation",
-      "Five of Swords": "Conflict, defeat, manipulation",
-      "Ace of Pentacles": "Prosperity, new opportunities, abundance",
-      "Two of Pentacles": "Balance, adaptability, juggling",
-      "Three of Pentacles": "Collaboration, skill, teamwork",
-      "Four of Pentacles": "Security, control, possessiveness",
-      "Five of Pentacles": "Hardship, insecurity, isolation"
-    };
+  // Basic card meanings for consistent interpretation
+  const cardMeanings = {
+    "The Fool": "New beginnings, spontaneity, trust in the universe",
+    "The Magician": "Manifestation, skill, resourcefulness",
+    "The High Priestess": "Intuition, mystery, inner wisdom",
+    "The Empress": "Nurturing, abundance, creativity",
+    "The Emperor": "Authority, structure, control",
+    "The Hierophant": "Tradition, spiritual guidance, conformity",
+    "The Lovers": "Love, harmony, choices",
+    "The Chariot": "Willpower, determination, victory",
+    "Strength": "Courage, inner strength, compassion",
+    "The Hermit": "Introspection, solitude, guidance",
+    "The Wheel of Fortune": "Cycles, change, destiny",
+    "Justice": "Fairness, truth, balance",
+    "The Hanged Man": "Surrender, perspective, sacrifice",
+    "Death": "Transformation, endings, new beginnings",
+    "Temperance": "Balance, moderation, harmony",
+    "The Devil": "Temptation, materialism, bondage",
+    "The Tower": "Sudden change, upheaval, revelation",
+    "The Star": "Hope, inspiration, healing",
+    "The Moon": "Illusion, intuition, uncertainty",
+    "The Sun": "Success, vitality, joy",
+    "Judgement": "Awakening, renewal, reckoning",
+    "The World": "Completion, fulfillment, unity",
+    "Ace of Cups": "Emotional new beginnings, love, intuition",
+    "Two of Cups": "Partnership, connection, unity",
+    "Three of Cups": "Celebration, friendship, joy",
+    "Four of Cups": "Apathy, reevaluation, missed opportunities",
+    "Five of Cups": "Loss, regret, moving on",
+    "Ace of Wands": "Inspiration, new ventures, energy",
+    "Two of Wands": "Planning, decisions, exploration",
+    "Three of Wands": "Expansion, foresight, progress",
+    "Four of Wands": "Celebration, stability, home",
+    "Five of Wands": "Conflict, competition, tension",
+    "Ace of Swords": "Clarity, truth, mental breakthrough",
+    "Two of Swords": "Indecision, stalemate, balance",
+    "Three of Swords": "Heartbreak, sorrow, betrayal",
+    "Four of Swords": "Rest, recovery, contemplation",
+    "Five of Swords": "Conflict, defeat, manipulation",
+    "Ace of Pentacles": "Prosperity, new opportunities, abundance",
+    "Two of Pentacles": "Balance, adaptability, juggling",
+    "Three of Pentacles": "Collaboration, skill, teamwork",
+    "Four of Pentacles": "Security, control, possessiveness",
+    "Five of Pentacles": "Hardship, insecurity, isolation"
+  };
 
-    // Select exactly 3 cards for Past, Present, Future
-    const numberOfCards = 3;
-    const selectedCards = [];
-    const positions = ["Past", "Present", "Future"];
-    const deckCopy = [...tarotDeck]; // Create a copy to avoid modifying original deck
-    for (let i = 0; i < numberOfCards; i++) {
-      const randomIndex = Math.floor(Math.random() * deckCopy.length);
-      selectedCards.push({ card: deckCopy[randomIndex], position: positions[i] });
-      deckCopy.splice(randomIndex, 1); // Remove card to prevent duplicates
-    }
+  // Select exactly 3 cards for Past, Present, Future
+  const numberOfCards = 3;
+  const selectedCards = [];
+  const positions = ["Past", "Present", "Future"];
+  const deckCopy = [...tarotDeck]; // Create a copy to avoid modifying original deck
+  for (let i = 0; i < numberOfCards; i++) {
+    const randomIndex = Math.floor(Math.random() * deckCopy.length);
+    selectedCards.push({ card: deckCopy[randomIndex], position: positions[i] });
+    deckCopy.splice(randomIndex, 1); // Remove card to prevent duplicates
+  }
 
-    const user = await User.findById(userId);
-    const zodiacSign = getSignFromDate(user.dob) || "Unknown";
-// In the Tarot section of chatWithPsychic
-let numerologyData = {};
-if (user.dob && !isNaN(new Date(user.dob))) {
-  numerologyData = calculateManualNumbers(user.username || "Anonymous", user.dob);
-  console.log("[Tarot] Numerology data calculated:", numerologyData);
-} else {
-  console.warn("[Tarot] No valid DOB for numerology integration; proceeding without numerology");
-}
+  const user = await User.findById(userId);
+  const zodiacSign = getSignFromDate(user.dob) || "Unknown";
 
-const tarotSystemPrompt = `
-You are ${psychicName}, a deeply intuitive Tarot reader. The current date is September 4, 2025. Use emojis to make responses engaging (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic).
+  // Calculate numerology data if DOB is valid
+  let numerologyData = {};
+  if (user.dob && !isNaN(new Date(user.dob))) {
+    numerologyData = calculateManualNumbers(user.username || "Anonymous", user.dob);
+    console.log("[Tarot] Numerology data calculated:", numerologyData);
+  } else {
+    console.warn("[Tarot] No valid DOB for numerology integration; proceeding without numerology");
+  }
+
+  const tarotSystemPrompt = `
+You are ${psychicName}, a deeply intuitive Tarot reader with expertise in numerology. The current date is September 4, 2025. Craft a cohesive, mystical reading that seamlessly blends Tarot and numerology for a personalized, uplifting experience. Use emojis (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic) to enhance engagement.
 
 ${emojiContext}
 
@@ -1063,57 +1064,70 @@ Client Details:
 • Date of Reading: ${new Date().toISOString().split('T')[0]}
 ${Object.keys(numerologyData).length > 0 ? `
 • Numerology:
-  - Life Path: ${numerologyData.lifePath || "N/A"} 🔢 (Purpose and life journey)
-  - Soul Urge: ${numerologyData.soulUrge || "N/A"} 💖 (Inner desires and motivations)
-  - Expression: ${numerologyData.expression || "N/A"} 🌟 (How you present to the world)
-${numerologyData.karmicLessons?.length ? `  - Karmic Lessons: ${numerologyData.karmicLessons.join(", ")} 📝` : ""}
-${numerologyData.challenges?.length ? `  - Challenges: ${formatChallenges(numerologyData.challenges)} ⚠️` : ""}
+  - Life Path: ${numerologyData.lifePath || "N/A"} 🔢 (guides life purpose, e.g., Life Path 7 seeks spiritual wisdom)
+  - Soul Urge: ${numerologyData.soulUrge || "N/A"} 💖 (inner desires, e.g., Soul Urge 3 craves creative expression)
+  - Expression: ${numerologyData.expression || "N/A"} 🌟 (outward talents, e.g., Expression 5 embraces adaptability)
+${numerologyData.karmicLessons?.length ? `  - Karmic Lessons: ${numerologyData.karmicLessons.join(", ")} 📝 (missing energies to learn)` : ""}
+${numerologyData.challenges?.length ? `  - Challenges: ${formatChallenges(numerologyData.challenges)} ⚠️ (life obstacles to overcome)` : ""}
 ` : "• Numerology: Not available due to missing birth date 📅"}
 
-I have pulled a three-card spread (Past, Present, Future) for you: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")} 🃏.
-Card meanings: ${selectedCards.map(c => `${c.card}: ${cardMeanings[c.card] || "General spiritual energy"}`).join("; ")}.
+Three-Card Spread (Past, Present, Future): ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")} 🃏
+Card Meanings: ${selectedCards.map(c => `${c.card}: ${cardMeanings[c.card] || "General spiritual energy"}`).join("; ")}
 
-Respond to the user's question: "${message || "What guidance does the universe offer me today?"}" with a spiritual, empowering, and highly personalized message. Interpret each card (${selectedCards.map(c => c.card).join(", ")}) based on its position (Past, Present, Future) and meaning. Seamlessly weave in the user's zodiac energy (${zodiacSign || "Unknown"}) and numerology insights (Life Path, Soul Urge, Expression, etc.) to make the reading feel unique and tailored. For example, connect the Life Path number to the card's theme (e.g., Life Path 7 aligns with The Hermit's introspection). Keep the tone compassionate and uplifting, using emojis (e.g., 🔮, 🃏, ✨) to enhance engagement. Keep response under 300 words.
+GUIDELINES:
+1. Respond to the user's question: "${message || "What guidance does the universe offer me today?"}"
+2. Interpret each card (Past, Present, Future) by weaving in numerology insights:
+   - Connect Life Path to the card’s life purpose theme (e.g., Life Path 1 aligns with The Magician’s leadership).
+   - Link Soul Urge to the card’s emotional or motivational aspects (e.g., Soul Urge 6 supports The Empress’s nurturing).
+   - Tie Expression to how the card’s energy is expressed (e.g., Expression 9 enhances The Star’s compassion).
+   - Reference Karmic Lessons or Challenges when relevant to the card’s narrative (e.g., a Karmic Lesson 4 supports The Emperor’s discipline).
+3. Incorporate ${zodiacSign || "the user’s"} zodiac energy briefly to enhance personalization (e.g., Aries’ boldness for The Chariot).
+4. Create a flowing, narrative-driven response that feels integrated, not a list of card meanings or numbers.
+5. Use a compassionate, empowering tone with emojis (🔮, 🃏, ✨, 💖).
+6. Avoid repeating the full numerology profile unless asked; focus on relevant insights.
+7. Keep response under 300 words for a concise, impactful reading.
+
+Example: For Life Path 7, The Hermit (Past) might reflect your introspective journey seeking wisdom, while Soul Urge 3 with The Sun (Present) suggests expressing joy creatively, and Expression 5 with The Fool (Future) encourages embracing new adventures.
 `.trim();
 
-const messagesForAI = [
-  { role: "system", content: tarotSystemPrompt },
-  ...chat.messages.slice(-5).map(msg => ({
-    role: msg.sender === "user" ? "user" : "assistant",
-    content: msg.text,
-  })),
-];
+  const messagesForAI = [
+    { role: "system", content: tarotSystemPrompt },
+    ...chat.messages.slice(-5).map(msg => ({
+      role: msg.sender === "user" ? "user" : "assistant",
+      content: msg.text,
+    })),
+  ];
 
-const completion = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: messagesForAI,
-  temperature: 1.0,
-  max_tokens: 350,
-});
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: messagesForAI,
+    temperature: 1.0,
+    max_tokens: 350,
+  });
 
-let aiText = completion.choices[0].message.content;
-aiText = addContextualEmojis(aiText, type);
+  let aiText = completion.choices[0].message.content;
+  aiText = addContextualEmojis(aiText, type);
 
-console.log(`[Tarot] Cards pulled: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")}, Response: ${aiText}`);
+  console.log(`[Tarot] Cards pulled: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")}, Response: ${aiText}`);
 
-chat.messages.push({ 
-  sender: "ai", 
-  text: aiText, 
-  emojiMetadata: processEmojis(aiText),
-  metadata: { selectedCards, numerologyData } // Include numerology in metadata for tracking
-});
-await chat.save();
+  chat.messages.push({ 
+    sender: "ai", 
+    text: aiText, 
+    emojiMetadata: processEmojis(aiText),
+    metadata: { selectedCards, numerologyData }
+  });
+  await chat.save();
 
-const response = {
-  success: true,
-  reply: aiText,
-  messages: chat.messages,
-  source: "GPT-4 Tarot (Three-Card Spread) + Manual Numerology",
-  metadata: { selectedCards, numerologyData }
-};
-const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
-return res.status(200).json(responseWithMetadata);
-  }
+  const response = {
+    success: true,
+    reply: aiText,
+    messages: chat.messages,
+    source: "GPT-4 Tarot (Three-Card Spread) + Manual Numerology",
+    metadata: { selectedCards, numerologyData }
+  };
+  const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
+  return res.status(200).json(responseWithMetadata);
+}
 
   } catch (err) {
     console.error("Chat Error:", err?.response?.data || err.message || err);
