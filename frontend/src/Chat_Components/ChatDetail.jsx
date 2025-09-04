@@ -106,7 +106,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   }, []);
 
   // Fetch session status with retry logic
-  const fetchSessionStatus = async (retries = 3, delay = 1000) => {
+  const fetchSessionStatus = async (retries = 3, delay = 1500) => {
     if (!chat?._id || authLoading || !user || authError || sessionLockRef.current) return;
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
@@ -115,9 +115,9 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           `${import.meta.env.VITE_BASE_URL}/api/session-status/${chat._id}`,
           { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
         );
-        const { isFree, remainingFreeTime, paidTimer, credits, status, freeSessionUsed } = response.data;
+        const { isFree, remainingFreeTime, paidTimer, credits: serverCredits, status, freeSessionUsed } = response.data;
         setIsFreePeriod(isFree);
-        setCredits(credits);
+        setCredits(serverCredits ?? 0); // Default to 0 if credits is undefined
         setTimerDuration(isFree ? remainingFreeTime : paidTimer);
         setTimerActive(isFree || (status === "paid" && paidTimer > 0));
         setFreeSessionStarted(isFree || status !== "new");
@@ -131,8 +131,9 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         return;
       } catch (error) {
         if (attempt === retries) {
-          setError(`Failed to fetch session status after ${retries} attempts: ${error.response?.data?.error || error.message}`);
-          toast.error("Failed to fetch session status. Please try again.");
+          setCredits(0); // Fallback to 0 to show "Add Credits" button
+          setTimerActive(false);
+          setTimerDuration(0);
         } else {
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -159,7 +160,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         setFreeSessionStarted(data.isFree || data.status !== "new");
         setFreeSessionUsed(data.freeSessionUsed || false);
         setTimerDuration(data.isFree ? data.remainingFreeTime : data.paidTimer);
-        setCredits(data.credits);
+        setCredits(data.credits ?? 0); // Default to 0 if credits is undefined
         if (data.status === "paid" && data.paidTimer > 0) {
           setActivePaidSession({ psychicId: data.psychicId, paidTimer: data.paidTimer });
         } else if (data.status === "stopped" || data.status === "insufficient_credits") {
@@ -179,7 +180,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
 
     socketRef.current.on("creditsUpdate", (data) => {
       if (data.userId === user._id) {
-        setCredits(data.credits);
+        setCredits(data.credits ?? 0); // Default to 0 if credits is undefined
       }
     });
 
@@ -220,7 +221,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       setIsFreePeriod(response.data.isFree);
       setTimerDuration(response.data.remainingFreeTime);
       setTimerActive(response.data.isFree);
-      setCredits(response.data.credits);
+      setCredits(response.data.credits ?? 0); // Default to 0 if undefined
       setFreeSessionStarted(true);
       setFreeSessionUsed(response.data.freeSessionUsed);
       setError(null);
@@ -234,6 +235,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         await fetchSessionStatus();
       } else {
         setError(`Failed to start free session: ${error.response?.data?.error || error.message}`);
+        toast.error(error.response?.data?.error || "Failed to start free session.");
       }
     } finally {
       sessionLockRef.current = false;
@@ -259,7 +261,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setIsFreePeriod(false);
           setTimerDuration(response.data.paidTimer);
           setTimerActive(true);
-          setCredits(response.data.credits);
+          setCredits(response.data.credits ?? 0); // Default to 0 if undefined
           setFreeSessionUsed(true);
           setActivePaidSession({ psychicId: chat._id, paidTimer: response.data.paidTimer });
           setError(null);
@@ -293,7 +295,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setIsFreePeriod(false);
           setTimerDuration(response.data.paidTimer);
           setTimerActive(true);
-          setCredits(response.data.credits);
+          setCredits(response.data.credits ?? 0); // Default to 0 if undefined
           setFreeSessionUsed(true);
           setActivePaidSession({ psychicId: chat._id, paidTimer: response.data.paidTimer });
           setError(null);
@@ -328,7 +330,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setTimerActive(false);
           setTimerDuration(0);
           setActivePaidSession(null);
-          setCredits(response.data.credits);
+          setCredits(response.data.credits ?? 0); // Default to 0 if undefined
           setFreeSessionUsed(true);
           setModalState("showFeedbackModal", true);
           setError(null);
@@ -360,7 +362,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           setTimerActive(false);
           setTimerDuration(0);
           setActivePaidSession(null);
-          setCredits(response.data.credits);
+          setCredits(response.data.credits ?? 0); // Default to 0 if undefined
           setFreeSessionUsed(true);
           setModalState("showFeedbackModal", true);
           setError(null);
@@ -396,6 +398,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       }
     } else {
       setError(authError || "Missing psychic ID or user authentication");
+      setCredits(0); // Default to 0 to ensure "Add Credits" button shows on auth error
     }
   }, [chat?._id, user, authLoading, authError, activePaidSession]);
 
@@ -433,6 +436,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     if (!timerActive) {
       if (freeSessionUsed && (credits == null || credits <= 0)) {
         toast.error("Out of credits. Please buy more to start a paid session.");
+        setIsPaymentModalOpen(true); // Open payment modal when trying to send message with 0 credits
         return;
       }
       if (freeSessionUsed && credits > 0) {
@@ -482,7 +486,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       return isFreePeriod ? "Type a message (free session)..." : "Type a message (paid session)...";
     }
     if (freeSessionUsed) {
-      return credits > 0 ? "Start a paid session to chat" : "Purchase credits to continue chatting.";
+      return (credits == null || credits <= 0) ? "Purchase credits to continue chatting." : "Start a paid session to chat";
     }
     return "Type a message...";
   };
@@ -627,7 +631,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                     {isFreePeriod
                       ? "Free minute timer (1 minute, cannot be stopped)"
                       : timerActive
-                      ? `Paid session: ${credits} credits remaining`
+                      ? `Paid session: ${credits ?? 0} credits remaining`
                       : activePaidSession && activePaidSession.psychicId !== chat._id
                       ? `End your paid session with another psychic to chat`
                       : freeSessionUsed
@@ -650,7 +654,40 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                   Credits: {credits}
                 </Button>
               )}
-              {!isFreePeriod && !timerActive && !activePaidSession && credits !== null && credits > 0 && freeSessionUsed && (
+              {!isFreePeriod && !timerActive && (credits === null || credits <= 0) && freeSessionUsed && (
+                isMobileDevice() ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => handleTouchStart(e, () => setIsPaymentModalOpen(true))}
+                    onTouchStart={(e) => handleTouchStart(e, () => setIsPaymentModalOpen(true))}
+                    disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
+                    className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors active:opacity-70"
+                  >
+                    Add Credits
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsPaymentModalOpen(true)}
+                          disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
+                          className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors"
+                        >
+                          Add Credits
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Purchase credits to continue
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              )}
+              {!isFreePeriod && !timerActive && credits !== null && credits > 0 && freeSessionUsed && (
                 isMobileDevice() ? (
                   <Button
                     variant="outline"
@@ -745,39 +782,6 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                       </TooltipTrigger>
                       <TooltipContent>
                         Stop paid session
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              )}
-              {!isFreePeriod && !timerActive && credits !== null && credits <= 0 && freeSessionUsed && (
-                isMobileDevice() ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => handleTouchStart(e, () => setIsPaymentModalOpen(true))}
-                    onTouchStart={(e) => handleTouchStart(e, () => setIsPaymentModalOpen(true))}
-                    disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
-                    className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors active:opacity-70"
-                  >
-                    Add Credits
-                  </Button>
-                ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsPaymentModalOpen(true)}
-                          disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
-                          className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors"
-                        >
-                          Add Credits
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Purchase credits to continue
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
