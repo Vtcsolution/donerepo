@@ -9,8 +9,8 @@ const mongoose = require("mongoose");
 
 const freeMinutes = 1;
 
-// Session Status Endpoint (unchanged)
-router.get("/session-status/:psychicId", protect, async (req, res) => {
+// Session Status Endpoint
+router.get("/session-status/:psychicId", protect, checkAndUpdateTimer, async (req, res) => {
   try {
     const { psychicId } = req.params;
     const userId = req.user?._id;
@@ -326,7 +326,7 @@ router.post("/start-paid-session/:psychicId", protect, checkAndUpdateTimer, asyn
   }
 });
 
-// Stop Paid Session Endpoint with retry logic
+// Stop Paid Session Endpoint
 router.post("/stop-session/:psychicId", protect, async (req, res) => {
   try {
     const { psychicId } = req.params;
