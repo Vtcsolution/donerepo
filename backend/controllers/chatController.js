@@ -195,7 +195,7 @@ const getTransitData = async (coords, userTimezone, ascendantDegree, natalPayloa
       return house;
     };
 
-    const keyPlanets = ["Sun", "Moon", "Venus", "Mars"];
+    const keyPlanets = ["Sun", "Moon", "Venus", "Mars", "Jupiter", "Saturn"];
     const transits = transitRes.data
       .filter(planet => keyPlanets.includes(planet.name))
       .map(planet => ({
@@ -345,7 +345,7 @@ const chatWithPsychic = async (req, res) => {
       }
 
       const planetDetails = western.planets
-        .filter(p => ["Sun", "Moon", "Venus", "Mars", "Ascendant"].includes(p.name))
+        .filter(p => ["Sun", "Moon", "Venus", "Mars", "Jupiter", "Saturn", "Ascendant"].includes(p.name))
         .map(p => `- ${p.name}: ${p.sign} (House ${p.house || "N/A"})`)
         .join("\n");
 
@@ -372,7 +372,10 @@ Client Details:
 
 🌞 Key Natal Placements:
 ${planetDetails}
-
+GUIDELINES:
+...
+3. Briefly mention key natal placements (Sun, Moon, Mars, Venus, Ascendant, Jupiter, Saturn) only when relevant
+...
 ${transitData ? `
 🌌 Current Transits (2025):
 ${transitDetails}
@@ -1040,60 +1043,76 @@ Respond clearly, professionally, and in a helpful tone. Avoid repeating the prof
 
     const user = await User.findById(userId);
     const zodiacSign = getSignFromDate(user.dob) || "Unknown";
+// In the Tarot section of chatWithPsychic
+let numerologyData = {};
+if (user.dob && !isNaN(new Date(user.dob))) {
+  numerologyData = calculateManualNumbers(user.username || "Anonymous", user.dob);
+  console.log("[Tarot] Numerology data calculated:", numerologyData);
+} else {
+  console.warn("[Tarot] No valid DOB for numerology integration; proceeding without numerology");
+}
 
-    const tarotSystemPrompt = `
-You are ${psychicName}, a deeply intuitive Tarot reader. The current date is September 3, 2025. Use emojis to make responses engaging (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic).
+const tarotSystemPrompt = `
+You are ${psychicName}, a deeply intuitive Tarot reader. The current date is September 4, 2025. Use emojis to make responses engaging (e.g., 🔮 for intuition, 🃏 for cards, ✨ for magic).
 
 ${emojiContext}
 
 Client Details:
 • Name: ${user.username || "friend"}
-• Zodiac Sign: ${zodiacSign} ♈
+• Zodiac Sign: ${zodiacSign || "Unknown"} ♈
 • Date of Reading: ${new Date().toISOString().split('T')[0]}
+${Object.keys(numerologyData).length > 0 ? `
+• Numerology:
+  - Life Path: ${numerologyData.lifePath || "N/A"} 🔢 (Purpose and life journey)
+  - Soul Urge: ${numerologyData.soulUrge || "N/A"} 💖 (Inner desires and motivations)
+  - Expression: ${numerologyData.expression || "N/A"} 🌟 (How you present to the world)
+${numerologyData.karmicLessons?.length ? `  - Karmic Lessons: ${numerologyData.karmicLessons.join(", ")} 📝` : ""}
+${numerologyData.challenges?.length ? `  - Challenges: ${formatChallenges(numerologyData.challenges)} ⚠️` : ""}
+` : "• Numerology: Not available due to missing birth date 📅"}
 
 I have pulled a three-card spread (Past, Present, Future) for you: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")} 🃏.
 Card meanings: ${selectedCards.map(c => `${c.card}: ${cardMeanings[c.card] || "General spiritual energy"}`).join("; ")}.
 
-Respond to the user's question: "${message || "What guidance does the universe offer me today?"}" with a spiritual and empowering message. Interpret each card (${selectedCards.map(c => c.card).join(", ")}) based on its position (Past, Present, Future) and meaning, linking it to the user's question and zodiac energy. Ensure the reading is unique, personal, and compassionate. Keep response under 300 words, using emojis (e.g., 🔮, 🃏, ✨) to enhance tone.
-    `.trim();
+Respond to the user's question: "${message || "What guidance does the universe offer me today?"}" with a spiritual, empowering, and highly personalized message. Interpret each card (${selectedCards.map(c => c.card).join(", ")}) based on its position (Past, Present, Future) and meaning. Seamlessly weave in the user's zodiac energy (${zodiacSign || "Unknown"}) and numerology insights (Life Path, Soul Urge, Expression, etc.) to make the reading feel unique and tailored. For example, connect the Life Path number to the card's theme (e.g., Life Path 7 aligns with The Hermit's introspection). Keep the tone compassionate and uplifting, using emojis (e.g., 🔮, 🃏, ✨) to enhance engagement. Keep response under 300 words.
+`.trim();
 
-    const messagesForAI = [
-      { role: "system", content: tarotSystemPrompt },
-      ...chat.messages.slice(-5).map(msg => ({
-        role: msg.sender === "user" ? "user" : "assistant",
-        content: msg.text,
-      })),
-    ];
+const messagesForAI = [
+  { role: "system", content: tarotSystemPrompt },
+  ...chat.messages.slice(-5).map(msg => ({
+    role: msg.sender === "user" ? "user" : "assistant",
+    content: msg.text,
+  })),
+];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: messagesForAI,
-      temperature: 1.0,
-      max_tokens: 350,
-    });
+const completion = await openai.chat.completions.create({
+  model: "gpt-4",
+  messages: messagesForAI,
+  temperature: 1.0,
+  max_tokens: 350,
+});
 
-    let aiText = completion.choices[0].message.content;
-    aiText = addContextualEmojis(aiText, type);
+let aiText = completion.choices[0].message.content;
+aiText = addContextualEmojis(aiText, type);
 
-    console.log(`[Tarot] Cards pulled: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")}, Response: ${aiText}`);
+console.log(`[Tarot] Cards pulled: ${selectedCards.map(c => `${c.card} (${c.position})`).join(", ")}, Response: ${aiText}`);
 
-    chat.messages.push({ 
-      sender: "ai", 
-      text: aiText, 
-      emojiMetadata: processEmojis(aiText),
-      metadata: { selectedCards } 
-    });
-    await chat.save();
+chat.messages.push({ 
+  sender: "ai", 
+  text: aiText, 
+  emojiMetadata: processEmojis(aiText),
+  metadata: { selectedCards, numerologyData } // Include numerology in metadata for tracking
+});
+await chat.save();
 
-    const response = {
-      success: true,
-      reply: aiText,
-      messages: chat.messages,
-      source: "GPT-4 Tarot (Three-Card Spread)",
-      metadata: { selectedCards }
-    };
-    const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
-    return res.status(200).json(responseWithMetadata);
+const response = {
+  success: true,
+  reply: aiText,
+  messages: chat.messages,
+  source: "GPT-4 Tarot (Three-Card Spread) + Manual Numerology",
+  metadata: { selectedCards, numerologyData }
+};
+const responseWithMetadata = await addTimerMetadata(response, userId, psychicId, isFree);
+return res.status(200).json(responseWithMetadata);
   }
 
   } catch (err) {
