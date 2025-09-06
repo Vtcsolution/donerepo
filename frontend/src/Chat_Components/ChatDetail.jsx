@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,24 +21,7 @@ const isMobileDevice = () => {
   return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
-// Utility function to throttle async operations (reduced wait time for better responsiveness)
-const throttle = (func, wait) => {
-  let lastCall = 0;
-  let isProcessing = false;
-  return async (...args) => {
-    const now = Date.now();
-    if (now - lastCall < wait || isProcessing) return Promise.resolve();
-    isProcessing = true;
-    lastCall = now;
-    try {
-      return await func(...args);
-    } finally {
-      isProcessing = false;
-    }
-  };
-};
-
-// Utility function to debounce async operations (for non-mobile)
+// Utility function to debounce async operations
 const debounce = (func, wait) => {
   let timeout;
   return (...args) => {
@@ -73,7 +57,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const timerIntervalRef = useRef(null);
-  const sessionLockRef = useRef(false); // Lock to prevent concurrent start/stop
+  const sessionLockRef = useRef(false);
 
   // Format timer duration in MM:SS
   const formatTimerDuration = (seconds) => {
@@ -105,7 +89,44 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     };
   }, []);
 
-  // Fetch session status with retry logic
+  // Reset states on mount (handles refresh)
+  useEffect(() => {
+    sessionLockRef.current = false;
+    setCredits(null);
+    setActivePaidSession(null);
+    setIsFreePeriod(false);
+    setTimerActive(false);
+    setTimerDuration(0);
+    setFreeSessionStarted(false);
+    setFreeSessionUsed(false);
+  }, []);
+
+  // Monitor auth changes (handles logout/login)
+  useEffect(() => {
+    if (!user) {
+      setCredits(null);
+      setActivePaidSession(null);
+      setIsFreePeriod(false);
+      setTimerActive(false);
+      setTimerDuration(0);
+      setFreeSessionStarted(false);
+      setFreeSessionUsed(false);
+      sessionLockRef.current = false;
+      console.log("User logged out, states reset");
+    } else if (chat?._id && !authLoading && !authError) {
+      fetchSessionStatus();
+    }
+  }, [user, authLoading, authError, chat?._id]);
+
+  // Periodic polling for credits if null
+  useEffect(() => {
+    if (user && chat?._id && credits === null && !authLoading && !authError) {
+      const interval = setInterval(() => fetchSessionStatus(), 5000);
+      return () => clearInterval(interval);
+    }
+  }, [user, chat?._id, credits, authLoading, authError]);
+
+  // Fetch session status with retry logic and fallback
   const fetchSessionStatus = async (retries = 3, delay = 1000) => {
     if (!chat?._id || authLoading || !user || authError || sessionLockRef.current) return;
     for (let attempt = 1; attempt <= retries; attempt++) {
@@ -115,14 +136,15 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
           `${import.meta.env.VITE_BASE_URL}/api/session-status/${chat._id}`,
           { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
         );
-        const { isFree, remainingFreeTime, paidTimer, credits, status, freeSessionUsed } = response.data;
+        const { isFree, remainingFreeTime, paidTimer, credits: serverCredits, status, freeSessionUsed } = response.data;
+        console.log("fetchSessionStatus:", { isFree, remainingFreeTime, paidTimer, credits: serverCredits, status, freeSessionUsed });
         setIsFreePeriod(isFree);
-        setCredits(credits);
+        setCredits(serverCredits ?? 0);
         setTimerDuration(isFree ? remainingFreeTime : paidTimer);
         setTimerActive(isFree || (status === "paid" && paidTimer > 0));
         setFreeSessionStarted(isFree || status !== "new");
         setFreeSessionUsed(freeSessionUsed);
-        if (status === "paid") {
+        if (status === "paid" && paidTimer > 0) {
           setActivePaidSession({ psychicId: chat._id, paidTimer });
         } else {
           setActivePaidSession(null);
@@ -130,7 +152,9 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         setError(null);
         return;
       } catch (error) {
+        console.error(`fetchSessionStatus attempt ${attempt} failed:`, error);
         if (attempt === retries) {
+          setCredits(0);
         } else {
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -146,18 +170,19 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
 
     socketRef.current.on("connect", () => {
       socketRef.current.emit("join", user._id);
+      console.log("WebSocket connected, joined user:", user._id);
     });
 
     socketRef.current.on("sessionUpdate", (data) => {
-      if (sessionLockRef.current) return; // Ignore updates during start/stop
+      if (sessionLockRef.current) return;
+      console.log("Received sessionUpdate:", data);
       if (data.psychicId === chat._id) {
-        console.log("Received sessionUpdate:", data); // Debug log
         setIsFreePeriod(data.isFree);
         setTimerActive(data.isFree || (data.status === "paid" && data.paidTimer > 0));
         setFreeSessionStarted(data.isFree || data.status !== "new");
         setFreeSessionUsed(data.freeSessionUsed || false);
         setTimerDuration(data.isFree ? data.remainingFreeTime : data.paidTimer);
-        setCredits(data.credits);
+        setCredits(data.credits ?? 0);
         if (data.status === "paid" && data.paidTimer > 0) {
           setActivePaidSession({ psychicId: data.psychicId, paidTimer: data.paidTimer });
         } else if (data.status === "stopped" || data.status === "insufficient_credits") {
@@ -177,11 +202,13 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
 
     socketRef.current.on("creditsUpdate", (data) => {
       if (data.userId === user._id) {
-        setCredits(data.credits);
+        console.log("Received creditsUpdate:", data);
+        setCredits(data.credits ?? 0);
       }
     });
 
     socketRef.current.on("connect_error", (err) => {
+      console.error("WebSocket connect_error:", err);
       setError("Failed to connect to real-time updates. Falling back to polling.");
       const pollingInterval = setInterval(() => fetchSessionStatus(), 2000);
       socketRef.current.pollingInterval = pollingInterval;
@@ -193,6 +220,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       if (socketRef.current) {
         clearInterval(socketRef.current.pollingInterval);
         socketRef.current.disconnect();
+        console.log("WebSocket disconnected");
       }
     };
   }, [user, chat?._id]);
@@ -215,15 +243,17 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
         {},
         { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
       );
+      console.log("startFreeSession response:", response.data);
       setIsFreePeriod(response.data.isFree);
       setTimerDuration(response.data.remainingFreeTime);
       setTimerActive(response.data.isFree);
-      setCredits(response.data.credits);
+      setCredits(response.data.credits ?? 0);
       setFreeSessionStarted(true);
       setFreeSessionUsed(response.data.freeSessionUsed);
       setError(null);
       await fetchSessionStatus();
     } catch (error) {
+      console.error("startFreeSession error:", error);
       if (error.response?.data?.error === "Free minute already used") {
         setFreeSessionUsed(true);
         setIsFreePeriod(false);
@@ -238,147 +268,91 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     }
   };
 
-  // Start paid session (reduced throttle time to 1000ms for mobile)
-  const startPaidSessionHandler = isMobileDevice()
-    ? throttle(async () => {
-        if (credits === null || credits <= 0 || isStartingSession || sessionLockRef.current) {
-          setIsPaymentModalOpen(true);
-          return;
-        }
-        sessionLockRef.current = true;
-        setIsStartingSession(true);
-        try {
-          const token = localStorage.getItem("accessToken") || user.token;
-          const response = await axios.post(
-            `${import.meta.env.VITE_BASE_URL}/api/start-paid-session/${chat._id}`,
-            {},
-            { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
-          );
-          setIsFreePeriod(false);
-          setTimerDuration(response.data.paidTimer);
-          setTimerActive(true);
-          setCredits(response.data.credits);
-          setFreeSessionUsed(true);
-          setActivePaidSession({ psychicId: chat._id, paidTimer: response.data.paidTimer });
-          setError(null);
-          toast.success("Paid session started successfully!");
-          await fetchSessionStatus(); // Added to sync after start
-        } catch (error) {
-          const errMsg = error.response?.data?.error || error.message;
-          setError(`Failed to start paid session: ${errMsg}`);
-          toast.error(errMsg || "Failed to start paid session. Please try again.");
-          if (errMsg.includes("locked")) {
-            toast.info("Resources are temporarily locked. Retrying automatically.");
-          }
-        } finally {
-          setIsStartingSession(false);
-          sessionLockRef.current = false;
-        }
-      }, 1000) // Reduced from 2000 to 1000 for less perceived lag
-    : debounce(async () => {
-        if (credits === null || credits <= 0 || isStartingSession || sessionLockRef.current) {
-          setIsPaymentModalOpen(true);
-          return;
-        }
-        sessionLockRef.current = true;
-        setIsStartingSession(true);
-        try {
-          const token = localStorage.getItem("accessToken") || user.token;
-          const response = await axios.post(
-            `${import.meta.env.VITE_BASE_URL}/api/start-paid-session/${chat._id}`,
-            {},
-            { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
-          );
-          setIsFreePeriod(false);
-          setTimerDuration(response.data.paidTimer);
-          setTimerActive(true);
-          setCredits(response.data.credits);
-          setFreeSessionUsed(true);
-          setActivePaidSession({ psychicId: chat._id, paidTimer: response.data.paidTimer });
-          setError(null);
-          toast.success("Paid session started successfully!");
-          await fetchSessionStatus(); // Added to sync after start
-        } catch (error) {
-          const errMsg = error.response?.data?.error || error.message;
-          setError(`Failed to start paid session: ${errMsg}`);
-          toast.error(errMsg || "Failed to start paid session. Please try again.");
-          if (errMsg.includes("locked")) {
-            toast.info("Resources are temporarily locked. Retrying automatically.");
-          }
-        } finally {
-          setIsStartingSession(false);
-          sessionLockRef.current = false;
-        }
-      }, 500);
+  // Start paid session
+  const startPaidSession = async () => {
+    if (credits === null || credits <= 0 || isStartingSession || sessionLockRef.current) {
+      setIsPaymentModalOpen(true);
+      return;
+    }
+    sessionLockRef.current = true;
+    setIsStartingSession(true);
+    try {
+      const token = localStorage.getItem("accessToken") || user.token;
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/start-paid-session/${chat._id}`,
+        {},
+        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("startPaidSession response:", response.data);
+      setIsFreePeriod(false);
+      setTimerDuration(response.data.paidTimer);
+      setTimerActive(true);
+      setCredits(response.data.credits ?? 0);
+      setFreeSessionUsed(true);
+      setActivePaidSession({ psychicId: chat._id, paidTimer: response.data.paidTimer });
+      setError(null);
+      toast.success("Paid session started successfully!");
+      await fetchSessionStatus();
+    } catch (error) {
+      const errMsg = error.response?.data?.error || error.message;
+      console.error("startPaidSession error:", error);
+      setError(`Failed to start paid session: ${errMsg}`);
+      toast.error(errMsg || "Failed to start paid session. Please try again.");
+      if (errMsg.includes("locked")) {
+        toast.info("Resources are temporarily locked. Retrying in a moment...");
+        setTimeout(() => fetchSessionStatus(), 2000);
+      }
+    } finally {
+      setIsStartingSession(false);
+      sessionLockRef.current = false;
+    }
+  };
 
-  // Stop paid session (reduced throttle time to 1000ms for mobile)
+  const startPaidSessionHandler = isMobileDevice()
+    ? debounce(startPaidSession, 200)
+    : debounce(startPaidSession, 500);
+
+  // Stop paid session
+  const stopPaidSession = async () => {
+    if (!chat?._id || authLoading || !user || authError || isStoppingSession || isStartingSession || sessionLockRef.current) return;
+    sessionLockRef.current = true;
+    setIsStoppingSession(true);
+    try {
+      const token = localStorage.getItem("accessToken") || user.token;
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/stop-session/${chat._id}`,
+        {},
+        { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("stopPaidSession response:", response.data);
+      setIsFreePeriod(false);
+      setTimerActive(false);
+      setTimerDuration(0);
+      setActivePaidSession(null);
+      setCredits(response.data.credits ?? 0);
+      setFreeSessionUsed(true);
+      setModalState("showFeedbackModal", true);
+      setError(null);
+      toast.success("Paid session stopped successfully!");
+      await fetchSessionStatus();
+    } catch (error) {
+      const errMsg = error.response?.data?.error || error.message;
+      console.error("stopPaidSession error:", error);
+      setError(`Failed to stop session: ${errMsg}`);
+      toast.error(errMsg || "Failed to stop session. Please try again.");
+      if (errMsg.includes("locked")) {
+        toast.info("Session or wallet is locked. Retrying in a moment...");
+        setTimeout(() => fetchSessionStatus(), 2000);
+      }
+    } finally {
+      setIsStoppingSession(false);
+      sessionLockRef.current = false;
+    }
+  };
+
   const stopPaidSessionHandler = isMobileDevice()
-    ? throttle(async () => {
-        if (!chat?._id || authLoading || !user || authError || isStoppingSession || isStartingSession || sessionLockRef.current) return;
-        sessionLockRef.current = true;
-        setIsStoppingSession(true);
-        try {
-          const token = localStorage.getItem("accessToken") || user.token;
-          const response = await axios.post(
-            `${import.meta.env.VITE_BASE_URL}/api/stop-session/${chat._id}`,
-            {},
-            { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
-          );
-          setIsFreePeriod(false);
-          setTimerActive(false);
-          setTimerDuration(0);
-          setActivePaidSession(null);
-          setCredits(response.data.credits);
-          setFreeSessionUsed(true);
-          setModalState("showFeedbackModal", true);
-          setError(null);
-          toast.success("Paid session stopped successfully!");
-          await fetchSessionStatus(); // Added to sync after stop
-        } catch (error) {
-          const errMsg = error.response?.data?.error || error.message;
-          setError(`Failed to stop session: ${errMsg}`);
-          toast.error(errMsg || "Failed to stop session. Please try again.");
-          if (errMsg.includes("locked")) {
-            toast.info("Session or wallet is locked. Please try again shortly.");
-          }
-        } finally {
-          setIsStoppingSession(false);
-          sessionLockRef.current = false;
-        }
-      }, 1000) // Reduced from 2000 to 1000 for less perceived lag
-    : debounce(async () => {
-        if (!chat?._id || authLoading || !user || authError || isStoppingSession || isStartingSession || sessionLockRef.current) return;
-        sessionLockRef.current = true;
-        setIsStoppingSession(true);
-        try {
-          const token = localStorage.getItem("accessToken") || user.token;
-          const response = await axios.post(
-            `${import.meta.env.VITE_BASE_URL}/api/stop-session/${chat._id}`,
-            {},
-            { withCredentials: true, headers: { Authorization: `Bearer ${token}` } }
-          );
-          setIsFreePeriod(false);
-          setTimerActive(false);
-          setTimerDuration(0);
-          setActivePaidSession(null);
-          setCredits(response.data.credits);
-          setFreeSessionUsed(true);
-          setModalState("showFeedbackModal", true);
-          setError(null);
-          toast.success("Paid session stopped successfully!");
-          await fetchSessionStatus(); // Added to sync after stop
-        } catch (error) {
-          const errMsg = error.response?.data?.error || error.message;
-          setError(`Failed to stop session: ${errMsg}`);
-          toast.error(errMsg || "Failed to stop session. Please try again.");
-          if (errMsg.includes("locked")) {
-            toast.info("Session or wallet is locked. Please try again shortly.");
-          }
-        } finally {
-          setIsStoppingSession(false);
-          sessionLockRef.current = false;
-        }
-      }, 500);
+    ? debounce(stopPaidSession, 200)
+    : debounce(stopPaidSession, 500);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -401,14 +375,14 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
     }
   }, [chat?._id, user, authLoading, authError, activePaidSession]);
 
-  // Local timer countdown for smoothness, with sync check when duration reaches 0
+  // Local timer countdown for smoothness
   useEffect(() => {
     if (timerActive && timerDuration > 0) {
       timerIntervalRef.current = setInterval(() => {
         setTimerDuration((prev) => {
           const newDuration = Math.max(0, prev - 1);
           if (newDuration === 0) {
-            fetchSessionStatus(); // Sync with server when local timer hits 0 to prevent glitches
+            fetchSessionStatus();
           }
           return newDuration;
         });
@@ -440,7 +414,8 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
 
     if (!timerActive) {
       if (freeSessionUsed && (credits == null || credits <= 0)) {
-        toast.error("Out of credits. Please buy more to start a paid session.");
+        toast.error("Out of credits. Please add credits to continue.");
+        setIsPaymentModalOpen(true);
         return;
       }
       if (freeSessionUsed && credits > 0) {
@@ -476,7 +451,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
   // Handle touch events for buttons
   const handleTouchStart = (e, handler) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     handler();
   };
 
@@ -595,7 +570,21 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
       {/* Timer, Credits, and Session Control Buttons */}
       {chat?._id && !authError && (
         <div className="border-t border-border bg-[#EEEEEE] p-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap min-h-[40px]"> {/* Added min-h to prevent layout jumps */}
+          <div className="flex items-center justify-between gap-2 flex-wrap min-h-[48px]">
+            {/* Debug Log */}
+            {console.log("Add Credits Button Debug:", {
+              credits,
+              isFreePeriod,
+              timerActive,
+              timerDuration,
+              freeSessionUsed,
+              sessionLock: sessionLockRef.current,
+              activePaidSession,
+              authLoading,
+              authError,
+              user: !!user,
+              chatId: chat?._id
+            })}
             {/* Timer on the Left */}
             {isMobileDevice() ? (
               <div className="flex items-center gap-1">
@@ -648,7 +637,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
 
             {/* Credits and Session Buttons on the Right */}
             <div className="flex items-center gap-2 flex-wrap">
-              {credits !== null && (
+              {credits !== null ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -657,8 +646,10 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                 >
                   Credits: {credits}
                 </Button>
+              ) : (
+                <span className="text-sm text-gray-500">Loading credits...</span>
               )}
-              {!isFreePeriod && !timerActive && !activePaidSession && credits !== null && credits > 0 && freeSessionUsed && (
+              {!isFreePeriod && !timerActive && !activePaidSession && credits !== null && credits > 0 && (
                 isMobileDevice() ? (
                   <Button
                     variant="outline"
@@ -758,7 +749,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                   </TooltipProvider>
                 )
               )}
-              {!isFreePeriod && !timerActive && credits !== null && credits <= 0 && freeSessionUsed && (
+              {!isFreePeriod && credits !== null && credits <= 0 && !authLoading && !authError && user && (
                 isMobileDevice() ? (
                   <Button
                     variant="outline"
@@ -767,6 +758,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                     onTouchStart={(e) => handleTouchStart(e, () => setIsPaymentModalOpen(true))}
                     disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
                     className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors active:opacity-70"
+                    aria-label="Add credits to continue chatting"
                   >
                     Add Credits
                   </Button>
@@ -780,6 +772,7 @@ export default function ChatDetail({ chat, onBack, onSendMessage }) {
                           onClick={() => setIsPaymentModalOpen(true)}
                           disabled={isStartingSession || isStoppingSession || sessionLockRef.current}
                           className="gap-1 bg-[#3B5EB7] text-white hover:bg-[#2A4A9A] hover:text-white transition-colors"
+                          aria-label="Add credits to continue chatting"
                         >
                           Add Credits
                         </Button>
