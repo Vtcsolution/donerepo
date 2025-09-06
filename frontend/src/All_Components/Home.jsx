@@ -1179,61 +1179,61 @@ const Home = () => {
 
   return (
     <div className="">
-      <div className="relative w-full overflow-hidden">
-        <img
-          src="/images/banner.jpeg"
-          className="w-full h-[600px] scale-105 max-sm:scale-125 object-cover"
-          alt="banner"
-        />
-        <div className="absolute top-1/2 sm:top-[80%] left-1/2 -translate-y-1/2 sm:-translate-y-[80%] -translate-x-1/2">
-          <h1
-            style={{ fontFamily: "Roboto" }}
-            className="text-4xl max-[500px]:w-[280px] sm:text-5xl lg:text-[52px] leading-[50px] sm:leading-[60px] md:leading-[70px] font-sans font-extrabold uppercase text-white text-center w-full"
-          >
-            DE NATIONALE HULPLIJN <br />VOOR ELKAAR MET ELKAAR
-          </h1>
-          <img
-            src="/images/newLogo.jpg"
-            className="md:w-20 md:h-20 w-14 h-14 m-auto rounded-full object-cover"
-            alt="logo"
-          />
-        </div>
-      </div>
+   <div className="relative w-full overflow-hidden">
+  <img
+    src="/images/banner.jpeg"
+    className="w-full h-[400px] sm:h-[600px] object-cover"
+    alt="banner"
+  />
+  <div className="absolute top-1/2 sm:top-[80%] left-1/2 -translate-y-1/2 sm:-translate-y-[80%] -translate-x-1/2 w-full px-4">
+    <h1
+      style={{ fontFamily: "Roboto" }}
+      className="text-3xl max-[500px]:text-2xl sm:text-4xl lg:text-[52px] leading-tight font-sans font-extrabold uppercase text-white text-center"
+    >
+      DE NATIONALE HULPLIJN <br />VOOR ELKAAR MET ELKAAR
+    </h1>
+    <img
+      src="/images/newLogo.jpg"
+      className="md:w-20 md:h-20 w-12 h-12 m-auto rounded-full object-cover"
+      alt="logo"
+    />
+  </div>
+</div>
 
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-900 text-white py-16 px-6">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">
-            Ontdek uw spirituele blauwdruk
-          </h1>
-          <p className="text-lg sm:text-xl mb-6 opacity-90">
-            Ontgrendel persoonlijke inzichten in uw spirituele reis
-          </p>
-          {!user && (
-            <Button
-              variant="brand"
-              className="rounded-full px-8 py-6 text-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 shadow-xl hover:shadow-2xl animate-[pulse_2s_infinite] hover:animate-none transition-all duration-300 transform hover:scale-105 border-2 border-white/20"
-              onClick={() => navigate('/register')}
-            >
-              Bekijk hier uw spirituele blauwdruk
-            </Button>
-          )}
-          <div className="mt-6 flex justify-center gap-4 flex-wrap">
-            <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white flex items-center gap-1 shadow-md animate-[bounce_3s_infinite]">
-              <Lock className="h-4 w-4" /> SSL Secure
-            </Badge>
-            <Badge className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white flex items-center gap-1 shadow-md animate-[bounce_3s_infinite]" style={{ animationDelay: '0.3s' }}>
-              <Cpu className="h-4 w-4" /> AI-Powered
-            </Badge>
-          </div>
-        </div>
-      </div>
+     <div className="bg-gradient-to-r from-purple-600 to-indigo-900 text-white py-12 px-4 sm:px-6 overflow-x-hidden">
+  <div className="max-w-[100vw] mx-auto text-center overflow-x-hidden">
+    <h1 className="text-3xl sm:text-4xl font-extrabold mb-4">
+      Ontdek uw spirituele blauwdruk
+    </h1>
+    <p className="text-base sm:text-lg mb-6 opacity-90 max-w-[90vw] mx-auto">
+      Ontgrendel persoonlijke inzichten in uw spirituele reis
+    </p>
+    {!user && (
+      <Button
+        variant="brand"
+        className="rounded-full px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-100 border-2 border-white/20 whitespace-normal"
+        onClick={() => navigate('/register')}
+      >
+        Bekijk hier uw spirituele blauwdruk
+      </Button>
+    )}
+    <div className="mt-6 flex justify-center gap-4 flex-wrap max-w-[90vw]">
+      <Badge className="bg-gradient-to-r from-violet-500 to-purple-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2">
+        <Lock className="h-4 w-4" /> SSL Secure
+      </Badge>
+      <Badge className="bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white flex items-center gap-1 shadow-md text-sm py-1 px-2" style={{ animationDelay: '0.3s' }}>
+        <Cpu className="h-4 w-4" /> AI-Powered
+      </Badge>
+    </div>
+  </div>
+</div>
 
-      <div className="max-w-7xl px-2 m-auto">
-        <div className="mt-8 grid grid-cols-1 gap-6">
-          <div className="lg:col-span-2 space-y-2 w-full">
-            <div className="overflow-x-auto">
-              <ProfileSection1 />
-            </div>
+     <div className="max-w-7xl px-2 m-auto">
+  <div className="mt-8 grid grid-cols-1 gap-6">
+    <div className="lg:col-span-2 space-y-2 w-full">
+      <div className="w-full overflow-hidden">
+        <ProfileSection1 />
+      </div>
             <div className="wrapper">
               <Tabs defaultValue="active">
                 <TabsContent value="active">
@@ -1425,24 +1425,24 @@ const Home = () => {
               )}
             </div>
           </div>
-          <div className="mt-12 max-w-4xl mx-auto px-4 py-8">
-            <div className="w-full flex justify-center">
-              <div className="text-center">
-                <h2 className="text-3xl font-extrabold text-center mb-8">Bekijk video hier</h2>
-                <video
-                  className="w-full max-w-sm sm:max-w-md md:max-w-lg h-auto aspect-video rounded-lg object-cover shadow-md"
-                  controls
-                  preload="metadata"
-                >
-                  <source src="/Spiritueelchatten.mov" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <div className="bg-green-600 text-white py-3 rounded-b-lg -mt-1">
-                  <span className="text-lg font-semibold">Watch video</span>
-                </div>
-              </div>
-            </div>
-          </div>
+         <div className="mt-12 max-w-4xl mx-auto px-4 py-8">
+  <div className="w-full flex justify-center">
+    <div className="text-center w-full max-w-[100vw]">
+      <h2 className="text-3xl font-extrabold text-center mb-8">Bekijk video hier</h2>
+      <video
+        className="w-full max-w-[90vw] sm:max-w-md md:max-w-lg h-auto aspect-video rounded-lg object-cover shadow-md"
+        controls
+        preload="metadata"
+      >
+        <source src="/Spiritueelchatten.mov" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      <div className="bg-green-600 text-white py-3 rounded-b-lg -mt-1">
+        <span className="text-lg font-semibold">Watch video</span>
+      </div>
+    </div>
+  </div>
+</div>
         </div>
       </div>
 
